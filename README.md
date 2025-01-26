@@ -1,5 +1,5 @@
 # PiDcc
-A DCC transmitter for the Raspberry PI.
+A DCC transmitter for the Raspberry Pi.
 
 ## Overview
 
@@ -34,6 +34,9 @@ PiDcc does not implement, and does not support, any of the feedback mechanisms d
 
 The pidcc program is installed in /usr/local/bin.
 
+> [!NOTE]
+> The PiGPIO library is normally installed by default on all Raspberry Pi OS variants. If any package is missing, install packages pigpio and libpigpio-dev
+
 ## Commands
 
 The PiDcc program accepts the following commands on its standard input:
@@ -41,7 +44,7 @@ The PiDcc program accepts the following commands on its standard input:
 ```
 pin GPIOA [GPIOB]
 ```
-Initialize the GPIO access. This command must be issued before any `send` commands (see below).
+Initialize the GPIO access. This command must be issued before any `send` commands (see below). GPIOA is the number of the first GPIO to use, GPIOB is the number if the second GPIO pin to use. GPIOB is optional.
 
 ```
 send BYTE ...
@@ -53,7 +56,7 @@ Send the specified sequence of bytes as a DCC packet. The first byte must be the
 ```
 debug [0|1]
 ```
-Enable or disable debug output. Without parameter, debug output is enabled. Any debug output line stats with character `$`.
+Enable or disable debug output. Without parameter, debug output is enabled. Any debug output line starts with character `$`.
 
 ```
 silent [0|1]
@@ -73,7 +76,7 @@ The first character defines the type of the line:
 | :--- | :--- |
 | _'#'_ | The transmitter is idle. |
 | _'*'_ | The transmitter is busy. |
-| _'!'_ | Error message. The text describes the error. |
+| _'!'_ | Error message. |
 | _'$'_ | Debug message. |
 
 The TIMESTAMP part provides the time when this message was initiated as fractional seconds with a micro-second accuracy.
