@@ -1,2 +1,82 @@
-# pidcc
+# PiDcc
 A DCC transmitter for the Raspberry PI.
+
+## Overview
+
+DCC is a standard for sending commands to locomotives and accessories on a model train layout. The commands are sent through the rails, as a pulse modulation of the electrical power.
+
+This program is designed to transmit DCC commands on the specified GPIO pins. When a DCC data packet is received from the standard input, PiDcc generates the proper modulated signal and then output it to the specified GPIO pins.
+
+PiDcc can handle up to two GPIO pins. When two pins are provided, PiDcc generates and inverted signal to the second pin. This matches how boosters made with DC motor drivers work.
+
+PiDcc transmits every DCC message three times, with the minimal separation as specified in the DCC standard. This reduces the risk of data loss due to transiant noise.
+
+PiDcc implements a transmission queue: the client application may send a burst of DCC messages. PiDcc will send each message back to back, one after the other. This queue has a limited size (up to 128 commands). This is meant to allow the client application some control on the timing between messages, especially for the DCC programming mode.
+
+The software is based on the PiGPIO library, which requires root access. Therefore the `pidcc` program is installed with the setuid bit.
+
+The purpose of PiDcc is to isolate an application from the PiGPIO library:
+- The application does not require the setuid bit and does not need to run as root.
+- The application does not have to be built as multithread.
+
+The application must launch `pidcc` in the background and control it through a pipe.
+
+## Restrictions
+
+PiDcc does not implement, and does not support, any of the feedback mechanisms described in the DCC standard.
+
+## Installation
+
+* Install git, make gcc.
+* Clone this repository.
+* make rebuild
+* sudo make install
+
+The pidcc program is installed in /usr/local/bin.
+
+## Commands
+
+The PiDcc program accepts the following commands on its standard input:
+
+```
+pin GPIOA [GPIOB]
+```
+Initialize the GPIO access. This command must be issued before any `send` commands (see below).
+
+```
+send BYTE ...
+```
+Send the specified sequence of bytes as a DCC packet. The first byte must be the DCC address (or the first byte of the DCC address). The pidcc program makes no assumption regarding the format of a DCC packet. Each byte value must be an integer formatted in the usual fashion, including:
+- A decimal value if the first digit is from 1 to 9.
+- An hexadecimal value if it starts with "0x".
+
+```
+debug [0|1]
+```
+Enable or disable debug output. Without parameter, debug output is enabled. Any debug output line stats with character `$`.
+
+```
+silent [0|1]
+```
+Enable or disable silent mode. Without parameter silent mode is enabled. Silent mode suppresses some (verbose) status output and minor error output.
+
+## Status
+
+The PiDcc program prints status, error and debug messages to its standard output. The syntax on an output line is:
+
+```
+('#' | '*' | '!' | '$') ' ' TIMESTAMP ' ' TEXT ...
+```
+The first character defines the type of the line:
+
+| Character | Description |
+| :--- | :--- |
+| _'#'_ | The transmitter is idle. |
+| _'*'_ | The transmitter is busy. |
+| _'!'_ | Error message. The text describes the error. |
+| _'$'_ | Debug message. |
+
+The TIMESTAMP part provides the time when this message was initiated as fractional seconds with a micro-second accuracy.
+
+The TEXT part provides a human readable description of the event.
+
