@@ -11,6 +11,8 @@ PiDCC can handle up to two GPIO pins. When two pins are provided, PiDCC generate
 
 PiDCC transmits every DCC message three times, with the minimal separation as specified in the DCC standard. This reduces the risk of data loss due to transiant noise.
 
+When there is nothing to transmit, PiDCC generates a continuous stream of bit 0, which maintains power without generating a permanent DC power.
+
 PiDCC implements a transmission queue: the client application may send a burst of DCC messages. PiDCC will send each message back to back, one after the other. This queue has a limited size (up to 128 commands). This is meant to allow the client application some control on the timing between messages, especially for the DCC programming mode.
 
 The software is based on the PiGPIO library, which requires root access. Therefore the `pidcc` program is installed with the setuid bit.
@@ -27,6 +29,8 @@ The client application must launch `pidcc` in the background and control it thro
 ## Restrictions
 
 PiDCC does not implement, and does not support, any of the feedback mechanisms described in the DCC standard.
+
+PiDCC does not support a mix of DCC and non DCC locomotives.
 
 ## Installation
 

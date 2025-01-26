@@ -6,6 +6,7 @@
 # Usage (typical):
 #   ./periodic.sh | /usr/local/bin/pidcc
 
+# echo "debug"
 echo "pin $1 $2"
 shift
 shift

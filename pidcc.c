@@ -188,9 +188,8 @@ static void pidcc_execute (char *command) {
       int gpioa = atoi (words[1]);
       int gpiob = 0;
       if (count > 2) gpiob = atoi (words[2]);
-      const char *error = pidcc_wave_initialize (gpioa, gpiob);
+      const char *error = pidcc_wave_initialize (gpioa, gpiob, Debug);
       if (error) pidcc_error (error);
-      pidcc_wave_idle ();
       return;
    }
 
@@ -249,31 +248,6 @@ static void pidcc_input (void) {
    }
 }
 
-static void pidcc_next_timeout (struct timeval *timeout,
-                                const struct timeval *deadline) {
-
-   // Doing some work takes some time, which is not accounted for in
-   // the select timeout context.
-   // The code needs to account for how much time is left until the
-   // deadline.
-   struct timeval now;
-   gettimeofday (&now, 0);
-   if ((deadline->tv_sec > now.tv_sec) ||
-       ((deadline->tv_sec == now.tv_sec) && (deadline->tv_usec > now.tv_usec))) {
-      timeout->tv_sec = deadline->tv_sec - now.tv_sec;
-      timeout->tv_usec = deadline->tv_usec - now.tv_usec;
-      if (deadline->tv_usec < now.tv_usec) {
-         timeout->tv_usec += 1000000;
-         timeout->tv_sec -= 1;
-      }
-      if (timeout->tv_usec < 100) timeout->tv_usec = 100;
-   } else {
-      // We have reached, or overshot, the deadline: don't wait.
-      timeout->tv_sec = 0;
-      timeout->tv_usec = 0;
-   }
-}
-
 static void pidcc_eventLoop (void) {
 
    int busy = 0; // Detect changes of state.
@@ -290,13 +264,30 @@ static void pidcc_eventLoop (void) {
       FD_ZERO(&read);
       FD_SET(DccCommandChannel, &read);
 
-      if (pidcc_wave_busy()) {
+      switch (pidcc_wave_state()) {
+
+      case PIDCC_STARTING:
+
          if (!busy) pidcc_busy (0);
          busy = 1;
-         pidcc_next_timeout (&timeout, &deadline);
-      } else {
+         timeout.tv_sec = 0;
+         timeout.tv_usec = 1000;
+         break;
+
+      case PIDCC_TRANSMITTING:
+
+         if (!busy) pidcc_busy (0);
+         busy = 1;
+         timeout.tv_sec = 0;
+         timeout.tv_usec = 10000;
+         break;
+
+      case PIDCC_IDLE:
+
          timeout.tv_sec = 1; // Default, unless a new packet is transmitted.
          timeout.tv_usec = 0;
+
+         deadline.tv_usec = 0;
 
          unsigned char *data;
          int length = pidcc_dequeue (&data);
@@ -316,23 +307,25 @@ static void pidcc_eventLoop (void) {
                }
                pidcc_busy ("transmitting..");
                timeout.tv_sec = 0;
-               timeout.tv_usec = waveduration;
+               timeout.tv_usec = 1000;
             }
             busy = 1;
          } else if (busy) {
-            const char *error = pidcc_wave_idle ();
-            if (error) pidcc_error (error);
             pidcc_idle (0);
             busy = 0;
-            deadline.tv_sec = 0;
-            deadline.tv_usec = 0;
          }
       }
+
       if (Debug) {
          char text[1024];
-         snprintf (text, sizeof(text), "waiting up to %lld.%06d seconds, deadline at %lld.%06d...",
-                   (long long)(timeout.tv_sec), (int)(timeout.tv_usec),
-                   (long long)(deadline.tv_sec), (int)(deadline.tv_usec));
+         if (deadline.tv_usec) {
+            snprintf (text, sizeof(text), "waiting for %lld.%06d seconds, transmission ends at %lld.%06d...",
+                      (long long)(timeout.tv_sec), (int)(timeout.tv_usec),
+                      (long long)(deadline.tv_sec), (int)(deadline.tv_usec));
+         } else {
+            snprintf (text, sizeof(text), "waiting for %lld.%06d seconds...",
+                      (long long)(timeout.tv_sec), (int)(timeout.tv_usec));
+         }
          pidcc_debug (text);
       }
       int status = select (DccCommandChannel+1, &read, 0, 0, &timeout);

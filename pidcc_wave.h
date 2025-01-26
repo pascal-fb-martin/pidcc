@@ -21,10 +21,15 @@
  *
  * pidcc_wave.h - A module that generates the wave form for each DCC packet.
  */
-const char *pidcc_wave_initialize (int gpioa, int gpiob);
+const char *pidcc_wave_initialize (int gpioa, int gpiob, int debug);
+
 const char *pidcc_wave_send (const unsigned char *data, int length);
 int pidcc_wave_microseconds (void);
-int pidcc_wave_busy (void);
-const char *pidcc_wave_idle (void);
 void pidcc_wave_release (void);
+
+#define PIDCC_IDLE         0
+#define PIDCC_STARTING     1
+#define PIDCC_TRANSMITTING 2
+
+int pidcc_wave_state (void);
 

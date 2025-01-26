@@ -28,7 +28,7 @@
  * The functions below typically return 0 on success, or a pointer to an error
  * description string on failure.
  *
- * const char *pidcc_wave_initialize (int gpioa, int gpiob);
+ * const char *pidcc_wave_initialize (int gpioa, int gpiob, int debug);
  *
  *    Initialize the I/O library, if needed, and select the two GPIO pins
  *    to use. This function can be called multiple times, for example to change
@@ -52,15 +52,11 @@
  *
  *    Return the time it will take to send the latest packet.
  *
- * int pidcc_wave_busy (void);
+ * int pidcc_wave_state (void);
  *
- *    Return 1 if busy transmitting, 0 otherwise. An application must not
- *    attempt transmission while DCC is busy.
- *
- * const char *pidcc_wave_idle (void);
- *
- *    Signal that no new DCC packet is to be sent and the transmitter may
- *    start a background signal.
+ *    Return PIDCC_STARTING when a transmission was requested but has not
+ *    started yet, PIDCC_TRANSMITTING when transmitting a packet and
+ *    PIDCC_IDLE when there is nothing to transmit.
  *
  * void pidcc_wave_release (void);
  *
@@ -72,6 +68,8 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <string.h>
+#include <sys/time.h>
+
 #include <pigpio.h> // Raspberry Pi OS only, not on regular Debian.
 
 #include "pidcc_wave.h"
@@ -83,7 +81,6 @@ static gpioPulse_t DccBit0[3];
 static gpioPulse_t DccBit1[3];
 
 static gpioPulse_t DccPreamble[31];
-static gpioPulse_t DccPowerOff[2];
 
 // Enough room for 15 preamble bits, 6 start bits, 6 data bytes, 1 stop bit
 // and interpackets idle period (5 msec).
@@ -101,8 +98,22 @@ DccPacket DccPendingPacket;
 static int DccPendingWave = -1;
 static int DccBackgroundWave = -1;
 
+static int DccTransmitStarting = 0;
+
 static int PigioInitialized = 0;
 
+static int PidccWaveDebug = 1; // Until initialized..
+
+static void pidcc_wave_debug (const char *text) {
+
+   if (!PidccWaveDebug) return;
+
+   struct timeval now;
+   gettimeofday (&now, 0);
+   long long sec = (long long)(now.tv_sec);
+   int usec = (int)(now.tv_usec);
+   printf ("$ %lld.%06d %s\n", sec, usec, text);
+}
 
 static void pidcc_wave_prepare (gpioPulse_t *pulse, int delay) {
 
@@ -117,7 +128,37 @@ static void pidcc_wave_prepare (gpioPulse_t *pulse, int delay) {
    pulse[2].usDelay = 0; // End of wave.
 }
 
-const char *pidcc_wave_initialize (int gpioa, int gpiob) {
+static const char *pidcc_wave_background (void) {
+
+  int result;
+
+  if (DccBackgroundWave < 0) {
+
+     if (gpioWaveAddNew()) {
+        return "gpioWaveAddNew() failed";
+     }
+
+     result = gpioWaveAddGeneric(2, DccBit0);
+     if (result < 0) {
+        return "gpioWaveAddGeneric(background) failed";
+     }
+
+     DccBackgroundWave = gpioWaveCreate();
+     if (DccBackgroundWave < 0) {
+        return "gpioWaveCreate(background) failed";
+     }
+  }
+
+  result = gpioWaveTxSend (DccBackgroundWave, PI_WAVE_MODE_REPEAT_SYNC);
+  if (result < 0) {
+     return "gpioWaveTxSend(background) failed";
+  }
+  return 0;
+}
+
+const char *pidcc_wave_initialize (int gpioa, int gpiob, int debug) {
+
+   PidccWaveDebug = debug;
 
    if (! PigioInitialized) {
       if (gpioInitialise() < 0) {
@@ -148,12 +189,7 @@ const char *pidcc_wave_initialize (int gpioa, int gpiob) {
    }
    DccPreamble[30].usDelay = 0; // End of preamble sequence.
 
-   DccPowerOff[0].gpioOn = 0;
-   DccPowerOff[0].gpioOff = (1 << DccWaveGpioA) + (DccWaveGpioB ? (1 << DccWaveGpioB) : 0);
-   DccPowerOff[0].usDelay = 100;
-   DccPowerOff[1].usDelay = 0;
-
-   return 0;
+   return pidcc_wave_background ();
 }
 
 static const char *pidcc_wave_append (DccPacket *packet,
@@ -224,32 +260,7 @@ static const char *pidcc_wave_format (DccPacket *packet,
      if (error) return error;
   }
 
-  // Finish the packet by cutting the power.
-  pidcc_wave_append (packet, DccPowerOff);
-
   packet->retry = 2; // Plan to repeat a few times, as per the DCC standard.
-  return 0;
-}
-
-static const char *pidcc_wave_background (void) {
-
-  if (gpioWaveAddNew()) {
-     return "gpioWaveAddNew() failed";
-  }
-
-  int result = gpioWaveAddGeneric(2, DccBit0);
-  if (result < 0) {
-     return "gpioWaveAddGeneric(background) failed";
-  }
-
-  DccBackgroundWave = gpioWaveCreate();
-  if (DccBackgroundWave < 0) {
-     return "gpioWaveCreate(background) failed";
-  }
-  result = gpioWaveTxSend (DccBackgroundWave, PI_WAVE_MODE_REPEAT);
-  if (result < 0) {
-     return "gpioWaveTxSend(background) failed";
-  }
   return 0;
 }
 
@@ -271,15 +282,11 @@ const char *pidcc_wave_transmit (void) {
   }
   DccPendingPacket.totalTime = gpioWaveGetMicros();
 
-  if (DccBackgroundWave >= 0) {
-     gpioWaveDelete (DccBackgroundWave);
-     DccBackgroundWave = -1;
-     gpioWaveTxStop ();
-  }
-  result = gpioWaveTxSend (DccPendingWave, 0);
+  result = gpioWaveTxSend (DccPendingWave, PI_WAVE_MODE_ONE_SHOT_SYNC);
   if (result < 0) {
      return "gpioWaveTxSend() failed";
   }
+  DccTransmitStarting = 1;
   return 0;
 }
 
@@ -289,6 +296,7 @@ const char *pidcc_wave_send (const unsigned char *data, int length) {
 
    if (DccPendingWave >= 0) return "busy";
 
+   pidcc_wave_debug ("pidcc_wave_send(): new transmission");
    const char *error = pidcc_wave_format (&DccPendingPacket, data, length);
    if (error) return error;
 
@@ -303,40 +311,51 @@ for (i = 0; i < DccPendingPacket.count; ++i) {
 }
 
 int pidcc_wave_microseconds (void) {
-   if (DccPendingWave < 0)  return 0;
-   return DccPendingPacket.retry * DccPendingPacket.totalTime;
+   if (DccPendingWave < 0)  return 100000;
+   return DccPendingPacket.totalTime + 200; // One background cycle after.
 }
 
-int pidcc_wave_busy (void) {
+int pidcc_wave_state (void) {
 
-   if (!PigioInitialized) return 0;
+   if (!PigioInitialized) return PIDCC_IDLE;
 
-   if (DccPendingWave < 0)  return 0;
+   if (DccPendingWave < 0) {
+      pidcc_wave_debug ("pidcc_wave_state(): idle");
+      return PIDCC_IDLE;
+   }
 
-   if (gpioWaveTxBusy()) return 1;
+   if (DccTransmitStarting) {
+      if (gpioWaveTxAt () == DccBackgroundWave) {
+         pidcc_wave_debug ("pidcc_wave_state(): starting a transmit");
+         return PIDCC_STARTING;
+      }
+      // The transmission has started: restart the background wave right
+      // after the transmission completed.
+      pidcc_wave_debug ("pidcc_wave_state(): transmission has started");
+      pidcc_wave_background ();
+      DccTransmitStarting = 0;
+   }
+
+   if (gpioWaveTxAt () == DccPendingWave) {
+      pidcc_wave_debug ("pidcc_wave_state(): still transmitting");
+      return PIDCC_TRANSMITTING; // Not complete yet.
+   }
 
    // At this point, there is a pending wave but transmission is complete.
    gpioWaveDelete (DccPendingWave);
    DccPendingWave = -1;
 
    if (DccPendingPacket.retry > 0) {
+      pidcc_wave_debug ("pidcc_wave_state(): repeat transmission");
       DccPendingPacket.retry -= 1;
       pidcc_wave_transmit();
-      return 1;
+      return PIDCC_STARTING;
    }
 
    // At this point, there is really nothing more to transmit.
-   return 0;
-}
-
-const char *pidcc_wave_idle (void) {
-
-   if (!PigioInitialized) return "not initialized";
-   if (DccPendingWave >= 0)  return "busy";
-
-   // Generate a continuous stream of "0" bits to avoid causing a DC voltage.
-   if (DccBackgroundWave < 0) return pidcc_wave_background ();
-   return 0;
+   pidcc_wave_debug ("pidcc_wave_state(): became idle");
+   if (!gpioWaveTxBusy ()) pidcc_wave_background (); // We missed something..
+   return PIDCC_IDLE;
 }
 
 void pidcc_wave_release (void) {
