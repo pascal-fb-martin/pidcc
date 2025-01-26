@@ -1,32 +1,32 @@
-# PiDcc
+# PiDCC
 A DCC transmitter for the Raspberry Pi.
 
 ## Overview
 
 DCC is a standard for sending commands to locomotives and accessories on a model train layout. The commands are sent through the rails, as a pulse modulation of the electrical power.
 
-This program is designed to transmit DCC commands on the specified GPIO pins. When a DCC data packet is received from the standard input, PiDcc generates the proper modulated signal and then outputs it to the specified GPIO pins.
+This program is designed to transmit DCC commands on the specified GPIO pins. When a DCC data packet is received from the standard input, PiDCC generates the proper modulated signal and then outputs it to the specified GPIO pins.
 
-PiDcc can handle up to two GPIO pins. When two pins are provided, PiDcc generates an inverted signal to the second pin. This matches how boosters made with DC motor drivers work.
+PiDCC can handle up to two GPIO pins. When two pins are provided, PiDCC generates an inverted signal to the second pin. This matches how boosters made with DC motor drivers work.
 
-PiDcc transmits every DCC message three times, with the minimal separation as specified in the DCC standard. This reduces the risk of data loss due to transiant noise.
+PiDCC transmits every DCC message three times, with the minimal separation as specified in the DCC standard. This reduces the risk of data loss due to transiant noise.
 
-PiDcc implements a transmission queue: the client application may send a burst of DCC messages. PiDcc will send each message back to back, one after the other. This queue has a limited size (up to 128 commands). This is meant to allow the client application some control on the timing between messages, especially for the DCC programming mode.
+PiDCC implements a transmission queue: the client application may send a burst of DCC messages. PiDCC will send each message back to back, one after the other. This queue has a limited size (up to 128 commands). This is meant to allow the client application some control on the timing between messages, especially for the DCC programming mode.
 
 The software is based on the PiGPIO library, which requires root access. Therefore the `pidcc` program is installed with the setuid bit.
 
-The purpose of PiDcc is to isolate a client application from the PiGPIO library:
+The purpose of PiDCC is to isolate a client application from the PiGPIO library:
 - The client application does not require the setuid bit and does not need to run as root.
 - The client application does not have to be built as multithread.
 
 The client application must launch `pidcc` in the background and control it through a pipe.
 
 > [!NOTE]
-> PiGPIO provides its own application, `pigpiod`, which allows multiple client (non root) applications to share access to the GPIO pins. The interface and client libraries provided by PiGPIO are still multithread. The PiDcc application is specific to the DCC standard, not general purpose: the client application does not need to be aware of the DCC signal modulation rules. PiDcc uses a simple (simplistic?) and documented protocol, and the client application does not depend on any specific library. A PiDcc client application is not required to be built in multithread mode, and can use any programming language it sees fit (see the test scripts). The avoidance of multithread mode is intentional, as the client applications that PiDcc is intended for are single threaded. On the downside, PiDcc does not support sharing access between multiple applications (yet..).
+> PiGPIO provides its own application, `pigpiod`, which allows multiple client (non root) applications to share access to the GPIO pins. The interface and client libraries provided by PiGPIO are still multithread. The PiDCC application is specific to the DCC standard, not general purpose: the client application does not need to be aware of the DCC signal modulation rules. PiDCC uses a simple (simplistic?) and documented protocol, and the client application does not depend on any specific library. A PiDCC client application is not required to be built in multithread mode, and can use any programming language it sees fit (see the test scripts). The avoidance of multithread mode is intentional, as the client applications that PiDCC is intended for are single threaded. On the downside, PiDCC does not support sharing access between multiple applications (yet..).
 
 ## Restrictions
 
-PiDcc does not implement, and does not support, any of the feedback mechanisms described in the DCC standard.
+PiDCC does not implement, and does not support, any of the feedback mechanisms described in the DCC standard.
 
 ## Installation
 
@@ -42,7 +42,7 @@ The pidcc program is installed in /usr/local/bin.
 
 ## Commands
 
-The PiDcc program accepts the following commands on its standard input:
+The PiDCC program accepts the following commands on its standard input:
 
 ```
 pin GPIOA [GPIOB]
@@ -68,7 +68,7 @@ Enable or disable silent mode. Without parameter silent mode is enabled. Silent 
 
 ## Status
 
-The PiDcc program prints status, error and debug messages to its standard output. The syntax on an output line is:
+The PiDCC program prints status, error and debug messages to its standard output. The syntax on an output line is:
 
 ```
 ('#' | '*' | '!' | '$') ' ' TIMESTAMP ' ' TEXT ...
