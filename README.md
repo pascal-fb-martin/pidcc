@@ -5,9 +5,9 @@ A DCC transmitter for the Raspberry Pi.
 
 DCC is a standard for sending commands to locomotives and accessories on a model train layout. The commands are sent through the rails, as a pulse modulation of the electrical power.
 
-This program is designed to transmit DCC commands on the specified GPIO pins. When a DCC data packet is received from the standard input, PiDcc generates the proper modulated signal and then output it to the specified GPIO pins.
+This program is designed to transmit DCC commands on the specified GPIO pins. When a DCC data packet is received from the standard input, PiDcc generates the proper modulated signal and then outputs it to the specified GPIO pins.
 
-PiDcc can handle up to two GPIO pins. When two pins are provided, PiDcc generates and inverted signal to the second pin. This matches how boosters made with DC motor drivers work.
+PiDcc can handle up to two GPIO pins. When two pins are provided, PiDcc generates an inverted signal to the second pin. This matches how boosters made with DC motor drivers work.
 
 PiDcc transmits every DCC message three times, with the minimal separation as specified in the DCC standard. This reduces the risk of data loss due to transiant noise.
 
@@ -15,11 +15,14 @@ PiDcc implements a transmission queue: the client application may send a burst o
 
 The software is based on the PiGPIO library, which requires root access. Therefore the `pidcc` program is installed with the setuid bit.
 
-The purpose of PiDcc is to isolate an application from the PiGPIO library:
-- The application does not require the setuid bit and does not need to run as root.
-- The application does not have to be built as multithread.
+The purpose of PiDcc is to isolate a client application from the PiGPIO library:
+- The client application does not require the setuid bit and does not need to run as root.
+- The client application does not have to be built as multithread.
 
-The application must launch `pidcc` in the background and control it through a pipe.
+The client application must launch `pidcc` in the background and control it through a pipe.
+
+> [!NOTE]
+> PiGPIO provides its own application, which allows multiple client (non root) applications to share access to the GPIO pins. The PiDcc program is slightly different, as the interface and client libraries provided by PiGPIO are still multithread. That insulation from multithread mode is intentional, as the client applications that PiDcc was intended for will not be built in multithread mode. In addition, the PiDcc application uses a simple (simplistic?) and documented protocol, and a client application does not depend on any specific library.
 
 ## Restrictions
 
