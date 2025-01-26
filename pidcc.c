@@ -251,7 +251,6 @@ static void pidcc_input (void) {
 static void pidcc_eventLoop (void) {
 
    int busy = 0; // Detect changes of state.
-   int waveduration = 0;
    struct timeval deadline = {0, 0};
    struct timeval timeout;
 
@@ -298,9 +297,8 @@ static void pidcc_eventLoop (void) {
                deadline.tv_sec = 0;
                deadline.tv_usec = 0;
             } else {
-               waveduration = pidcc_wave_microseconds ();
                gettimeofday (&deadline, 0);
-               deadline.tv_usec += waveduration;
+               deadline.tv_usec += pidcc_wave_microseconds ();
                while (deadline.tv_usec > 1000000) {
                   deadline.tv_usec -= 1000000;
                   deadline.tv_sec += 1;
