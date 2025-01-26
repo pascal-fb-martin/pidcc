@@ -22,7 +22,7 @@ The purpose of PiDcc is to isolate a client application from the PiGPIO library:
 The client application must launch `pidcc` in the background and control it through a pipe.
 
 > [!NOTE]
-> PiGPIO provides its own application, which allows multiple client (non root) applications to share access to the GPIO pins. The PiDcc program is slightly different, as the interface and client libraries provided by PiGPIO are still multithread. That insulation from multithread mode is intentional, as the client applications that PiDcc was intended for will not be built in multithread mode. In addition, the PiDcc application uses a simple (simplistic?) and documented protocol, and a client application does not depend on any specific library.
+> PiGPIO provides its own application, `pigpiod`, which allows multiple client (non root) applications to share access to the GPIO pins. The interface and client libraries provided by PiGPIO are still multithread. The PiDcc application is specific to the DCC standard, not general purpose: the client application does not need to be aware of the DCC signal modulation rules. PiDcc uses a simple (simplistic?) and documented protocol, and the client application does not depend on any specific library. A PiDcc client application is not required to be built in multithread mode, and can use any programming language it sees fit (see the test scripts). The avoidance of multithread mode is intentional, as the client applications that PiDcc is intended for are single threaded. On the downside, PiDcc does not support sharing access between multiple applications (yet..).
 
 ## Restrictions
 
