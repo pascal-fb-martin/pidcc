@@ -87,7 +87,7 @@ The first character defines the type of the line:
 | _'!'_ | Error message. |
 | _'$'_ | Debug message. |
 
-The TIMESTAMP part provides the time when this message was initiated as fractional seconds with a micro-second accuracy.
+The `TIMESTAMP` part provides the time when this message was initiated as fractional seconds with a micro-second accuracy.
 
-The TEXT part provides a human readable description of the event.
+The `TEXT` part provides a human readable description of the event.
 
