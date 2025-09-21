@@ -57,6 +57,7 @@ Initialize the GPIO access. This command must be issued before any `send` comman
 send BYTE ...
 ```
 Send the specified sequence of bytes as a DCC packet. The first byte must be the DCC address (or the first byte of the DCC address). The pidcc program makes no assumption regarding the format of a DCC packet. Each byte value must be an integer formatted in the usual fashion, including:
+
 - A decimal value if the first digit is from 1 to 9.
 - An hexadecimal value if it starts with "0x".
 
@@ -75,7 +76,7 @@ Enable or disable silent mode. Without parameter silent mode is enabled. Silent 
 The PiDCC program prints status, error and debug messages to its standard output. The syntax on an output line is:
 
 ```
-('#' | '*' | '!' | '$') ' ' TIMESTAMP ' ' TEXT ...
+    ('#' | '*' | '!' | '$') ' ' TIMESTAMP ' ' TEXT ...
 ```
 The first character defines the type of the line:
 
