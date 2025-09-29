@@ -61,6 +61,8 @@ Send the specified sequence of bytes as a DCC packet. The first byte must be the
 - A decimal value if the first digit is from 1 to 9.
 - An hexadecimal value if it starts with "0x".
 
+The sender must not append the DCC error detection byte to the data. PiDCC will generate the error detection byte.
+
 ```
 debug [0|1]
 ```
@@ -76,16 +78,19 @@ Enable or disable silent mode. Without parameter silent mode is enabled. Silent 
 The PiDCC program prints status, error and debug messages to its standard output. The syntax on an output line is:
 
 ```
-    ('#' | '*' | '!' | '$') ' ' TIMESTAMP ' ' TEXT ...
+    ('#' | '%' | '*' | '!' | '$') ' ' TIMESTAMP ' ' TEXT ...
 ```
 The first character defines the type of the line:
 
 | Character | Description |
 | :--- | :--- |
-| _'#'_ | The transmitter is idle. |
-| _'*'_ | The transmitter is busy. |
+| _'#'_ | The transmitter is idle and the queue is empty. |
+| _'%'_ | The transmitter is busy but the queue is not full. |
+| _'*'_ | The transmitter is busy and the queue is full. |
 | _'!'_ | Error message. |
 | _'$'_ | Debug message. |
+
+The PiDCC program still accepts commands as long as its queue is not full.
 
 The `TIMESTAMP` part provides the time when this message was initiated as fractional seconds with a micro-second accuracy.
 

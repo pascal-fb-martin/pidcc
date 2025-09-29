@@ -80,6 +80,11 @@ static DccCommand DccQueue[128];
 static int Debug = 0;
 static int Silent = 0;
 
+static int pidcc_next (int cursor) {
+   if (++cursor >= 128) return 0;
+   return cursor;
+}
+
 static void pidcc_status (char category, const char *text) {
    struct timeval now;
    gettimeofday (&now, 0);
@@ -99,17 +104,15 @@ static void pidcc_idle (const char *text) {
 
 static void pidcc_busy (const char *text) {
    if (!text) text = "busy";
-   pidcc_status ('*', text);
+   if (pidcc_next (DccQueueProducer) == DccQueueConsumer)
+      pidcc_status ('*', text); // Queue full, stop accepting commands
+   else
+      pidcc_status ('%', text); // Busy but still accepting commands.
 }
 
 static void pidcc_debug (const char *text) {
    if (! Debug) return;
    pidcc_status ('$', text);
-}
-
-static int pidcc_next (int cursor) {
-   if (++cursor >= 128) return 0;
-   return cursor;
 }
 
 static const char *pidcc_enqueue (const unsigned char *data, int length) {
@@ -176,7 +179,11 @@ static void pidcc_execute (char *command) {
          data[length++] = strtol (words[i], 0, 0);
       }
       const char *error = pidcc_enqueue (data, length);
-      if (error && (!Silent)) pidcc_error (error);
+      if (error) {
+         if (!Silent) pidcc_error (error);
+      } else {
+          pidcc_busy ("command queued");
+      }
       return;
    }
 
