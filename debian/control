@@ -1,0 +1,19 @@
+Source: pidcc
+Version: 1.0
+Section: Web servers
+Maintainer: Pascal Martin <pascal.fb.martin@gmail.com>
+Priority: optional
+Homepage: https://github.com/pascal-fb-martin/pidcc
+Standard-Version: 4.7.0
+Package: pidcc
+Architecture: {{arch}}
+Depends: libpigpio1
+Description: A background program to generate DCC signals
+ The PiDCC application is meant to be forked by a DCC application and fed
+ with DCC messages to transmit. PiDCC generates the modulated signal
+ that is injected into a 12V power supply.
+ .
+ The main reasons for PiDCC to exist is to free the application from
+ timing sensitive modulation work and to insulate it from the PigGpio's
+ thread dependency.
+

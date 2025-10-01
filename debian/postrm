@@ -1,0 +1,14 @@
+#!/bin/sh
+
+prefix=/usr/local
+
+HAPP=pidcc
+
+case $1 in
+    remove)
+        ;;
+    purge)
+        rm -f /etc/default/$HAPP
+        ;;
+esac
+

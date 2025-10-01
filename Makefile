@@ -63,10 +63,24 @@ install-doc: purge-doc
 
 install: install-doc
 	$(INSTALL) -m 0755 -d $(DESTDIR)$(prefix)/bin
-	rm -f $(prefix)/bin/pidcc $(DESTDIR)$(prefix)/bin/tstgpio
+	rm -f $(DESTDIR)$(prefix)/bin/pidcc $(DESTDIR)$(prefix)/bin/tstgpio
 	$(INSTALL) -m 6755 -s pidcc tstgpio $(DESTDIR)$(prefix)/bin
 
 uninstall: purge-doc
 	rm -f $(DESTDIR)$(prefix)/bin/pidcc $(DESTDIR)$(prefix)/bin/tstgpio
 	rm -f $(DESTDIR)$(HMAN)/$(HAPP).md
+
+# Build a private Debian package. -------------------------------
+
+debian-package:
+	rm -rf build
+	install -m 0755 -d build/pidcc/DEBIAN
+	cat debian/control-common debian/control | sed "s/{{arch}}/`dpkg --print-architecture`/" > build/pidcc/DEBIAN/control
+	install -m 0644 debian/copyright build/pidcc/DEBIAN
+	install -m 0644 debian/changelog build/pidcc/DEBIAN
+	install -m 0755 debian/postinst build/pidcc/DEBIAN
+	install -m 0755 debian/postrm build/pidcc/DEBIAN
+	make DESTDIR=build/pidcc install
+	cd build/pidcc ; find etc -type f | sed 's/etc/\/etc/' > DEBIAN/conffiles
+	cd build ; fakeroot dpkg-deb -b pidcc .
 

@@ -1,0 +1,6 @@
+pidcc (1.0) UNRELEASED; urgency=low
+
+   * Initial release as a Debian package.
+
+ -- Pascal Martin <pascal.fb.martin@gmail.com>  Wed, 1 Oct 2025 17:35:00 +0000
+
