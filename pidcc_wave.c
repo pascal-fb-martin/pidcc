@@ -62,7 +62,9 @@
  *
  *    Release all current resources.
  *
- * TBD: create background wave firt time needed, reuse and never delete it.
+ * CAUTION:
+ *
+ *    Cannot use GPIO 0 because '0' is used as null (no pin).
  */
 #include <stdio.h>
 #include <stdlib.h>
@@ -157,6 +159,8 @@ static const char *pidcc_wave_background (void) {
 }
 
 const char *pidcc_wave_initialize (int gpioa, int gpiob, int debug) {
+
+   if (gpioa <= 0) return "Invalid pin number"; // Don't use GPIO 0.
 
    PidccWaveDebug = debug;
 
@@ -264,7 +268,7 @@ static const char *pidcc_wave_format (DccPacket *packet,
   return 0;
 }
 
-const char *pidcc_wave_transmit (void) {
+static const char *pidcc_wave_transmit (void) {
 
   if (gpioWaveAddNew()) {
      return "gpioWaveAddNew() failed";
@@ -360,6 +364,8 @@ int pidcc_wave_state (void) {
 
 void pidcc_wave_release (void) {
 
-  gpioTerminate ();
+   if (PigioInitialized) {
+      gpioTerminate ();
+   }
 }
 
