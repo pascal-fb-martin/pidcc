@@ -52,5 +52,6 @@ Mkfile.old
 dkms.conf
 
 # PiDCC specific targets
+build
 pidcc
 tstgpio

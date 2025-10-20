@@ -1,4 +1,4 @@
-	/* DCC Transmitter - A software that generates the DCC signal for a booster.
+/* DCC Transmitter - A software that generates the DCC signal for a booster.
  *
  * Copyright 2025, Pascal Martin
  *
@@ -91,6 +91,7 @@ static void pidcc_status (char category, const char *text) {
    long long sec = (long long)(now.tv_sec);
    int usec = (int)(now.tv_usec);
    printf ("%c %lld.%06d %s\n", category, sec, usec, text);
+   fflush (stdout);
 }
 
 static void pidcc_error (const char *text) {
