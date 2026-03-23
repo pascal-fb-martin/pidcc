@@ -27,15 +27,17 @@
  * The user commands and their syntax are:
  *
  *    ping <pin+> [<pin->]      Specify the GPIO pins to be used.
+ *    idle [0|1]                Disable or enable idle packets generation.
  *    send <byte> ...           Send the specified data packet.
  *    debug [0|1]               Enable/disable debug mode (default: enable)
  *    silent [0|1]              Enable/disable silent mode (default: enable)
  *
- * When the program starts, debug and silent modes are disabled.
+ * When the program starts, debug and silent modes are disabled, idle mode
+ * is enabled.
  *
  * When debug mode is enabled, debug messages are produced.
  *
- * When silent mode is enable, some errors are ignored (e.g. queue full).
+ * When silent mode is enabled, some errors are ignored (e.g. queue full).
  *
  * The format of status message is as follow:
  *
@@ -79,6 +81,7 @@ static DccCommand DccQueue[128];
 
 static int Debug = 0;
 static int Silent = 0;
+static int ActiveIdle = 1;
 
 static int pidcc_next (int cursor) {
    if (++cursor >= 128) return 0;
@@ -213,6 +216,12 @@ static void pidcc_execute (char *command) {
       return;
    }
 
+   if (!strcasecmp (words[0], "idle")) {
+      if (count < 2) ActiveIdle = 1;
+      else ActiveIdle = atoi (words[1]);
+      return;
+   }
+
    pidcc_error ("unknown command");
 }
 
@@ -319,6 +328,17 @@ static void pidcc_eventLoop (void) {
          } else if (busy) {
             pidcc_idle (0);
             busy = 0;
+            if (ActiveIdle) {
+               // Wait 30ms before initiating an idle packet.
+               timeout.tv_sec = 0;
+               timeout.tv_usec = 30000;
+            }
+         } else if (ActiveIdle) {
+            static unsigned char idlepacket[] = {255, 0};
+            pidcc_wave_send (idlepacket, 2);
+            pidcc_idle ("Transmitting idle packet..");
+            timeout.tv_sec = 0;
+            timeout.tv_usec = 1000;
          }
       }
 
