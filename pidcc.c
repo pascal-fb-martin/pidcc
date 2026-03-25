@@ -332,9 +332,7 @@ static void pidcc_eventLoop (void) {
                deadline.tv_usec = 0;
             } else {
                gettimeofday (&deadline, 0);
-               pauseend = deadline;
                pidcc_delay (&deadline, pidcc_wave_microseconds ());
-               pidcc_delay (&pauseend, 30000);
                pidcc_busy ("transmitting..");
                timeout = busytimeout;
             }
@@ -342,17 +340,21 @@ static void pidcc_eventLoop (void) {
             busy = 1;
          } else if (busy) {
             if (userpacket) pidcc_idle (0);
-            userpacket = 0;
-            busy = 0;
             if (ActiveIdle) {
+               if (userpacket) {
+                  gettimeofday (&pauseend, 0);
+                  pidcc_delay (&pauseend, 20000); // Time from end to start
+               }
                timeout = pausetimeout;
             }
+            userpacket = 0;
+            busy = 0;
          } else if (ActiveIdle) {
             struct timeval now;
             gettimeofday (&now, 0);
             if (pidcc_after (&now, &pauseend)) {
                pidcc_wave_idle ();
-               pidcc_delay (&pauseend, 30000);
+               pidcc_delay (&pauseend, 30000); // Time from start to start
                timeout = busytimeout;
                busy = 1;
             } else {
