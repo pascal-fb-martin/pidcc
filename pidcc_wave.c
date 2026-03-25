@@ -257,7 +257,7 @@ static const char *pidcc_wave_format (DccPacket *packet,
 
   // A subsequent DCC packet must not be sent within 5 msec after the previous
   // packet. To ensure this, follow the packet with a 5 msec long bit "0"
-  // stream ("0" lasts 200 usec, there fore we need 25 of them).
+  // stream ("0" lasts 200 usec, therefore we need 25 of them).
   //
   // Apparently a DCC generator must keep the power line in AC mode by sending
   // a continuous bit "0" signal. The stretched bit "0" was intended to force
