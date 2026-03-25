@@ -25,6 +25,7 @@ const char *pidcc_wave_initialize (int gpioa, int gpiob, int debug);
 
 const char *pidcc_wave_send (const unsigned char *data, int length);
 int pidcc_wave_microseconds (void);
+void pidcc_wave_idle (void);
 void pidcc_wave_release (void);
 
 #define PIDCC_IDLE         0

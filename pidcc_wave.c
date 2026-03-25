@@ -58,6 +58,10 @@
  *    started yet, PIDCC_TRANSMITTING when transmitting a packet and
  *    PIDCC_IDLE when there is nothing to transmit.
  *
+ * void pidcc_wave_idle (void);
+ *
+ *    Transmit the DCC IDLE packet (once).
+ *
  * void pidcc_wave_release (void);
  *
  *    Release all current resources.
@@ -312,6 +316,13 @@ for (i = 0; i < DccPendingPacket.count; ++i) {
 }
 */
    return pidcc_wave_transmit ();
+}
+
+void pidcc_wave_idle (void) {
+   static unsigned char idlepacket[] = {255, 0};
+   const char *error = pidcc_wave_send (idlepacket, 2);
+   if (error) return;
+   DccPendingPacket.retry = 0;
 }
 
 int pidcc_wave_microseconds (void) {

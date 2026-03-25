@@ -265,14 +265,33 @@ static void pidcc_input (void) {
    }
 }
 
+static void pidcc_delay (struct timeval *end, int usec) {
+    end->tv_usec += usec;
+    if (end->tv_usec > 1000000) {
+       end->tv_usec -= 1000000;
+       end->tv_sec += 1;
+    }
+}
+
+static int pidcc_after (const struct timeval *now, const struct timeval *end) {
+    if ((now->tv_sec > end->tv_sec) ||
+        ((now->tv_sec == end->tv_sec) && (now->tv_usec >= end->tv_usec))) {
+       return 1;
+    }
+    return 0;
+}
+
 static void pidcc_eventLoop (void) {
 
-   int busy = 0; // Detect changes of state.
-   struct timeval deadline = {0, 0};
-   struct timeval timeout;
+   const struct timeval idletimeout = {1, 0};
+   const struct timeval busytimeout = {0, 1000};
+   const struct timeval pausetimeout = {0, 10000};
 
-   timeout.tv_sec = 1;
-   timeout.tv_usec = 0;
+   int busy = 0; // Detect changes of state.
+   int userpacket = 0;
+   struct timeval deadline = {0, 0};
+   struct timeval pauseend = {0, 0};
+   struct timeval timeout = idletimeout;
 
    for (;;) {
       fd_set read;
@@ -284,24 +303,22 @@ static void pidcc_eventLoop (void) {
 
       case PIDCC_STARTING:
 
-         if (!busy) pidcc_busy (0);
+         if (!busy) pidcc_busy ("Starting");
          busy = 1;
-         timeout.tv_sec = 0;
-         timeout.tv_usec = 1000;
+         timeout = busytimeout;
          break;
 
       case PIDCC_TRANSMITTING:
 
-         if (!busy) pidcc_busy (0);
+         if (!busy) pidcc_busy ("Transmitting");
          busy = 1;
-         timeout.tv_sec = 0;
-         timeout.tv_usec = 10000;
+         timeout = busytimeout;
          break;
 
       case PIDCC_IDLE:
 
-         timeout.tv_sec = 1; // Default, unless a new packet is transmitted.
-         timeout.tv_usec = 0;
+         // Default, unless a new packet is transmitted.
+         timeout = idletimeout;
 
          deadline.tv_usec = 0;
 
@@ -315,30 +332,32 @@ static void pidcc_eventLoop (void) {
                deadline.tv_usec = 0;
             } else {
                gettimeofday (&deadline, 0);
-               deadline.tv_usec += pidcc_wave_microseconds ();
-               while (deadline.tv_usec > 1000000) {
-                  deadline.tv_usec -= 1000000;
-                  deadline.tv_sec += 1;
-               }
+               pauseend = deadline;
+               pidcc_delay (&deadline, pidcc_wave_microseconds ());
+               pidcc_delay (&pauseend, 30000);
                pidcc_busy ("transmitting..");
-               timeout.tv_sec = 0;
-               timeout.tv_usec = 1000;
+               timeout = busytimeout;
             }
+            userpacket = 1;
             busy = 1;
          } else if (busy) {
-            pidcc_idle (0);
+            if (userpacket) pidcc_idle (0);
+            userpacket = 0;
             busy = 0;
             if (ActiveIdle) {
-               // Wait 30ms before initiating an idle packet.
-               timeout.tv_sec = 0;
-               timeout.tv_usec = 30000;
+               timeout = pausetimeout;
             }
          } else if (ActiveIdle) {
-            static unsigned char idlepacket[] = {255, 0};
-            pidcc_wave_send (idlepacket, 2);
-            pidcc_idle ("Transmitting idle packet..");
-            timeout.tv_sec = 0;
-            timeout.tv_usec = 1000;
+            struct timeval now;
+            gettimeofday (&now, 0);
+            if (pidcc_after (&now, &pauseend)) {
+               pidcc_wave_idle ();
+               pidcc_delay (&pauseend, 30000);
+               timeout = busytimeout;
+               busy = 1;
+            } else {
+               timeout = pausetimeout;
+            }
          }
       }
 
