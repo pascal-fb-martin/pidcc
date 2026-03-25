@@ -284,7 +284,7 @@ static int pidcc_after (const struct timeval *now, const struct timeval *end) {
 static void pidcc_eventLoop (void) {
 
    const struct timeval idletimeout = {1, 0};
-   const struct timeval busytimeout = {0, 1000};
+   const struct timeval busytimeout = {0, 2000};
    const struct timeval pausetimeout = {0, 5000};
 
    int busy = 0; // Detect changes of state.
@@ -343,7 +343,7 @@ static void pidcc_eventLoop (void) {
             if (ActiveIdle) {
                if (userpacket) {
                   gettimeofday (&pauseend, 0);
-                  pidcc_delay (&pauseend, 20000); // Time from end to start
+                  pidcc_delay (&pauseend, 15000); // Time from end to start
                }
                timeout = pausetimeout;
             }
