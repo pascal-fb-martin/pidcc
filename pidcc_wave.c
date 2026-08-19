@@ -40,7 +40,7 @@
  *
  *    Return 0 on success, other value on failure.
  *
- * const char *pidcc_wave_send (int address,
+ * const char *pidcc_wave_send (int programming,
  *                              const unsigned char *data, int length);
  *
  *    Format and send a DCC packet. The DCC decoder address is part of the
@@ -86,11 +86,11 @@ static int DccWaveGpioB;
 static gpioPulse_t DccBit0[3];
 static gpioPulse_t DccBit1[3];
 
-static gpioPulse_t DccPreamble[31];
+static gpioPulse_t DccPreamble[41];
 
-// Enough room for 15 preamble bits, 6 start bits, 6 data bytes, 1 stop bit
+// Enough room for 20 preamble bits, 6 start bits, 16 data bytes, 1 stop bit
 // and interpackets idle period (5 msec).
-#define DCCMAXWAVE (2*(15+6+(8*6)+1)+51)
+#define DCCMAXWAVE (2*(20+6+(8*16)+1)+51)
 
 typedef struct {
    int count;
@@ -191,11 +191,11 @@ const char *pidcc_wave_initialize (int gpioa, int gpiob, int debug) {
    pidcc_wave_prepare (DccBit1, 58);
 
    int i;
-   for (i = 0; i < 30; i += 2) {
+   for (i = 0; i < 40; i += 2) {
       DccPreamble[i] = DccBit1[0];
       DccPreamble[i+1] = DccBit1[1];
    }
-   DccPreamble[30].usDelay = 0; // End of preamble sequence.
+   DccPreamble[40].usDelay = 0; // End of preamble sequence.
 
    return pidcc_wave_background ();
 }
@@ -229,13 +229,17 @@ static const char *pidcc_wave_appendByte (DccPacket *packet,
 }
 
 static const char *pidcc_wave_format (DccPacket *packet,
+                                      int programming,
                                       const unsigned char *data, int length) {
 
   packet->count = 0;
   packet->retry = 0; // For now, in case of error.
   unsigned char detect = 0;
 
-  const char *error = pidcc_wave_append (packet, DccPreamble);
+  // A programming packet requires 20 bits of preamble, a normal packet
+  // requires 14 bits (this generates 15).
+  gpioPulse_t *preamble = DccPreamble + (programming?0:10);
+  const char *error = pidcc_wave_append (packet, preamble);
   if (error) return error;
 
   int i;
@@ -268,7 +272,8 @@ static const char *pidcc_wave_format (DccPacket *packet,
      if (error) return error;
   }
 
-  packet->retry = 2; // Plan to repeat a few times, as per the DCC standard.
+  // Plan to repeat the packet a few times, as per the DCC standard.
+  packet->retry = programming ? 5 : 2;
   return 0;
 }
 
@@ -298,14 +303,16 @@ static const char *pidcc_wave_transmit (void) {
   return 0;
 }
 
-const char *pidcc_wave_send (const unsigned char *data, int length) {
+const char *pidcc_wave_send (int programming,
+                             const unsigned char *data, int length) {
 
    if (!PigioInitialized) return "Not initialized yet";;
 
    if (DccPendingWave >= 0) return "busy";
 
    pidcc_wave_debug ("pidcc_wave_send(): new transmission");
-   const char *error = pidcc_wave_format (&DccPendingPacket, data, length);
+   const char *error =
+           pidcc_wave_format (&DccPendingPacket, programming, data, length);
    if (error) return error;
 
 /*
@@ -320,7 +327,7 @@ for (i = 0; i < DccPendingPacket.count; ++i) {
 
 void pidcc_wave_idle (void) {
    static unsigned char idlepacket[] = {255, 0};
-   const char *error = pidcc_wave_send (idlepacket, 2);
+   const char *error = pidcc_wave_send (0, idlepacket, 2);
    if (error) return;
    DccPendingPacket.retry = 0;
 }

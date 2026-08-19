@@ -54,7 +54,7 @@ pin GPIOA [GPIOB]
 Initialize the GPIO access. This command must be issued before any `send` commands (see below). GPIOA is the number of the first GPIO to use, GPIOB is the number if the second GPIO pin to use. GPIOB is optional.
 
 ```
-send BYTE ...
+send [-p] BYTE ...
 ```
 Send the specified sequence of bytes as a DCC packet. The first byte must be the DCC address (or the first byte of the DCC address). The pidcc program makes no assumption regarding the format of a DCC packet. Each byte value must be an integer formatted in the usual fashion, including:
 
@@ -62,6 +62,8 @@ Send the specified sequence of bytes as a DCC packet. The first byte must be the
 - An hexadecimal value if it starts with "0x".
 
 The sender must not append the DCC error detection byte to the data. PiDCC will generate the error detection byte.
+
+the `-p` option indicates a programming command, which have extended preamble and retry requirements.
 
 ```
 debug [0|1]

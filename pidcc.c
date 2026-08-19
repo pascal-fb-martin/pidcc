@@ -28,7 +28,8 @@
  *
  *    ping <pin+> [<pin->]      Specify the GPIO pins to be used.
  *    idle [0|1]                Disable or enable idle packets generation.
- *    send <byte> ...           Send the specified data packet.
+ *    send [-p] <byte> ...      Send the specified data packet.
+ *                                  -p: this is a programming command.
  *    debug [0|1]               Enable/disable debug mode (default: enable)
  *    silent [0|1]              Enable/disable silent mode (default: enable)
  *
@@ -71,7 +72,8 @@ int DccCommandChannel = 0;
 
 #define DCCMAXDATALENGTH 16
 typedef struct {
-   int length;
+   short length;
+   short programming;
    unsigned char data[DCCMAXDATALENGTH];
 } DccCommand;
 
@@ -119,7 +121,8 @@ static void pidcc_debug (const char *text) {
    pidcc_status ('$', text);
 }
 
-static const char *pidcc_enqueue (const unsigned char *data, int length) {
+static const char *pidcc_enqueue (const unsigned char *data,
+                                  int length, int programming) {
 
    if (length > DCCMAXDATALENGTH) return "data too long";
 
@@ -132,11 +135,12 @@ static const char *pidcc_enqueue (const unsigned char *data, int length) {
    }
 
    memcpy (DccQueue[cursor].data, data, length);
-   DccQueue[cursor].length = length;
+   DccQueue[cursor].length = (short)length;
+   DccQueue[cursor].programming = (short)programming;
    return 0;
 }
 
-static int pidcc_dequeue (unsigned char **data) {
+static int pidcc_dequeue (unsigned char **data, int *programming) {
 
    if (DccQueueProducer == DccQueueConsumer) return 0; // Queue is empty.
 
@@ -146,6 +150,7 @@ static int pidcc_dequeue (unsigned char **data) {
    if (!data) return 0; // Queue purge.
 
    *data = DccQueue[cursor].data;
+   *programming = DccQueue[cursor].programming;
    return DccQueue[cursor].length;
 }
 
@@ -169,20 +174,26 @@ static void pidcc_execute (char *command) {
    }
 
    if (!strcasecmp (words[0], "send")) {
-      if (count < 2) {
-         pidcc_error ("missing packet data");
-         return;
+      int programming = 0;
+      for (i = 1; i < count; ++i) {
+          const char *word = words[i];
+          if (word[0] != '-') break;
+          if (word[1] == 'p') programming = 1;
       }
       int length = 0;
       unsigned char data[DCCMAXDATALENGTH];
-      for (i = 1; i < count; ++i) {
+      for (; i < count; ++i) {
          if (length >= DCCMAXDATALENGTH) {
             pidcc_error ("packet data too long");
             return;
          }
          data[length++] = strtol (words[i], 0, 0);
       }
-      const char *error = pidcc_enqueue (data, length);
+      if (length < 2) {
+         pidcc_error ("missing packet data");
+         return;
+      }
+      const char *error = pidcc_enqueue (data, length, programming);
       if (error) {
          if (!Silent) pidcc_error (error);
       } else {
@@ -323,9 +334,10 @@ static void pidcc_eventLoop (void) {
          deadline.tv_usec = 0;
 
          unsigned char *data;
-         int length = pidcc_dequeue (&data);
+         int programming;
+         int length = pidcc_dequeue (&data, &programming);
          if (length > 0) {
-            const char *error = pidcc_wave_send (data, length);
+            const char *error = pidcc_wave_send (programming, data, length);
             if (error) {
                pidcc_error (error);
                deadline.tv_sec = 0;
