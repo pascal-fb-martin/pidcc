@@ -92,8 +92,8 @@
 
 #include "pidcc_wave.h"
 
-static int DccWaveGpioA;
-static int DccWaveGpioB;
+static int DccWaveGpioA = 0;
+static int DccWaveGpioB = 0;
 
 static gpioPulse_t DccBit0[3];
 static gpioPulse_t DccBit1[3];
@@ -173,8 +173,10 @@ static const char *pidcc_wave_background (void) {
 const char *pidcc_wave_initialize (int gpioa, int gpiob, int debug) {
 
    if (gpioa <= 0) return "Invalid pin number"; // Don't use GPIO 0.
+   if (gpiob == gpioa) return "GPIO A and GPIO B must be different";
 
    PidccWaveDebug = debug;
+   DccWaveGpioA = DccWaveGpioB = 0;
 
    if (! PigioInitialized) {
       if (gpioInitialise() < 0) {
@@ -186,13 +188,12 @@ const char *pidcc_wave_initialize (int gpioa, int gpiob, int debug) {
    if (gpioSetMode(gpioa, PI_OUTPUT)) {
       return "gpioSetMode(gpioa) failed";
    }
-   DccWaveGpioA = gpioa;
-
    if (gpiob) {
       if (gpioSetMode(gpiob, PI_OUTPUT)) {
          return "gpioSetMode(gpiob) failed";
       }
    }
+   DccWaveGpioA = gpioa;
    DccWaveGpioB = gpiob;
 
    pidcc_wave_prepare (DccBit0, 100);
@@ -307,7 +308,8 @@ static const char *pidcc_wave_transmit (void) {
 const char *pidcc_wave_send (int programming,
                              const unsigned char *data, int length) {
 
-   if (!PigioInitialized) return "Not initialized yet";;
+   if (!PigioInitialized) return "Not initialized yet";
+   if (DccWaveGpioA <= 0) return "No GPIO pin";
 
    if (DccPendingWave >= 0) return "busy";
 
@@ -336,11 +338,11 @@ void pidcc_wave_idle (void) {
 const char *pidcc_wave_off (int duration) {
 
     if (!PigioInitialized) return "Not initialized yet";;
+    if (DccWaveGpioB <= 0) return "power off requires two GPIO pins";
     if (DccPendingWave >= 0) return "busy";
 
     DccOff[0].gpioOn = 0;
-    DccOff[0].gpioOff =
-            (1 << DccWaveGpioA) + (DccWaveGpioB?(1 << DccWaveGpioB):0);
+    DccOff[0].gpioOff = (1 << DccWaveGpioA) + (1 << DccWaveGpioB);
     DccOff[0].usDelay = 1000000 * duration;
     DccOff[1].usDelay = 0; // End of wave.
 

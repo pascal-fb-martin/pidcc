@@ -5,15 +5,17 @@ A DCC transmitter for the Raspberry Pi.
 
 DCC is a standard for sending commands to locomotives and accessories on a model train layout. The commands are sent through the rails, as a pulse modulation of the electrical power.
 
-This program is designed to transmit DCC commands on the specified GPIO pins. When a DCC data packet is received from the standard input, PiDCC generates the proper modulated signal and then outputs it to the specified GPIO pins.
+This program is designed to transmit DCC commands on specified GPIO pins. When a DCC data packet is received from the standard input, PiDCC generates the proper modulated signal and then outputs it to the GPIO pins.
 
-PiDCC can handle up to two GPIO pins. When two pins are provided, PiDCC generates an inverted signal to the second pin. This matches how boosters made with DC motor drivers work.
+PiDCC can handle up to two GPIO pins. When two pins are provided, PiDCC generates an inverted signal to the second pin. This matches how boosters made with DC motor H-bridge drivers work.
 
-PiDCC transmits every DCC message three times, with the minimal separation as specified in the DCC standard. This reduces the risk of data loss due to transiant noise.
+PiDCC transmits every DCC message three times (six in programming mode), with the minimal separation as specified in the DCC standard. This reduces the risk of data loss due to transiant noise.
 
-When there is nothing to transmit, PiDCC generates a continuous stream of bit 0, which maintains power without generating a permanent DC power.
+PiDCC supports a "power off" command, which turns the power off for a specified time. This feature works only if two GPIO pins are used. This is intended to reset a decoder before programming. The power off is achieved by transmitting a steady signal with the same value on both pins.
 
-PiDCC implements a transmission queue: the client application may send a burst of DCC messages. PiDCC will send each message back to back, one after the other. This queue has a limited size (up to 128 commands). This is meant to allow the client application some control on the timing between messages, especially for the DCC programming mode.
+When there is nothing to transmit, PiDCC defaults to generating periodic DCC IDLE messages, with a continuous stream of bit 0 in between, This avoid the decoders to timeout while maintaining power without generating a permanent DC power.
+
+PiDCC transmits in the background and always accept new messages. It implements a transmission queue: the client application may send a burst of DCC messages, PiDCC will send each message back to back, one after the other. This queue has a limited size (up to 128 commands). This is meant to allow the client application some control on the timing between messages, especially for the DCC programming mode.
 
 The software is based on the PiGPIO library, which requires root access. Therefore the `pidcc` program is installed with the setuid bit.
 
@@ -79,6 +81,11 @@ Enable or disable debug output. Without parameter, debug output is enabled. Any 
 silent [0|1]
 ```
 Enable or disable silent mode. Without parameter silent mode is enabled. Silent mode suppresses some (verbose) status output and minor error output.
+
+```
+idle [0|1]
+```
+Enable or disable the generation of periodic DCC IDLE messages in the background. Without a parameter, this enable IDLE messages.
 
 ## Status
 

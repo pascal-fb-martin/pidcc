@@ -154,6 +154,10 @@ static int pidcc_dequeue (unsigned char **data, int *programming) {
    return DccQueue[cursor].length;
 }
 
+static int valid_gpio (int gpio) {
+    return (gpio > 0) && (gpio <= 26); // Specific to Raspberry Pi.
+}
+
 static void pidcc_execute (char *command) {
 
    int count;
@@ -228,8 +232,22 @@ static void pidcc_execute (char *command) {
          return;
       }
       int gpioa = atoi (words[1]);
+      if (!valid_gpio(gpioa)) {
+          pidcc_error ("invalid GPIO A pin");
+          return;
+      }
       int gpiob = 0;
-      if (count > 2) gpiob = atoi (words[2]);
+      if (count > 2) {
+          gpiob = atoi (words[2]);
+          if (!valid_gpio(gpiob)) {
+              pidcc_error ("invalid GPIO B pin");
+              return;
+          }
+          if (gpiob == gpioa) {
+              pidcc_error ("the GPIO pins must be different");
+              return;
+          }
+      }
       const char *error = pidcc_wave_initialize (gpioa, gpiob, Debug);
       if (error) pidcc_error (error);
       return;
