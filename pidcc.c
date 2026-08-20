@@ -134,7 +134,7 @@ static const char *pidcc_enqueue (const unsigned char *data,
       return "transmitter queue full";
    }
 
-   memcpy (DccQueue[cursor].data, data, length);
+   if (length > 0) memcpy (DccQueue[cursor].data, data, length);
    DccQueue[cursor].length = (short)length;
    DccQueue[cursor].programming = (short)programming;
    return 0;
@@ -142,12 +142,12 @@ static const char *pidcc_enqueue (const unsigned char *data,
 
 static int pidcc_dequeue (unsigned char **data, int *programming) {
 
-   if (DccQueueProducer == DccQueueConsumer) return 0; // Queue is empty.
+   if (DccQueueProducer == DccQueueConsumer) return -1; // Queue is empty.
 
    int cursor = DccQueueConsumer;
    DccQueueConsumer = pidcc_next (DccQueueConsumer);
 
-   if (!data) return 0; // Queue purge.
+   if (!data) return -1; // Queue purge.
 
    *data = DccQueue[cursor].data;
    *programming = DccQueue[cursor].programming;
@@ -198,6 +198,26 @@ static void pidcc_execute (char *command) {
          if (!Silent) pidcc_error (error);
       } else {
           pidcc_busy ("command queued");
+      }
+      return;
+   }
+
+   if (!strcasecmp (words[0], "poweroff")) {
+      if (count < 2) {
+         pidcc_error ("missing power off duration");
+         return;
+      }
+      int duration = atoi (words[1]);
+      if (duration <= 0) {
+         pidcc_error ("invalid power off duration");
+         return;
+      }
+      if (duration > 60) duration = 60;
+      const char *error = pidcc_enqueue (0, 0, duration);
+      if (error) {
+         if (!Silent) pidcc_error (error);
+      } else {
+          pidcc_busy ("power off queued");
       }
       return;
    }
@@ -300,6 +320,8 @@ static void pidcc_eventLoop (void) {
 
    int busy = 0; // Detect changes of state.
    int userpacket = 0;
+   int powercycle = 0;
+
    struct timeval deadline = {0, 0};
    struct timeval pauseend = {0, 0};
    struct timeval timeout = idletimeout;
@@ -316,20 +338,21 @@ static void pidcc_eventLoop (void) {
 
          if (!busy) pidcc_busy ("Starting");
          busy = 1;
-         timeout = busytimeout;
+         timeout = powercycle ? idletimeout : busytimeout;
          break;
 
       case PIDCC_TRANSMITTING:
 
          if (!busy) pidcc_busy ("Transmitting");
          busy = 1;
-         timeout = busytimeout;
+         timeout = powercycle ? idletimeout : busytimeout;
          break;
 
       case PIDCC_IDLE:
 
-         // Default, unless a new packet is transmitted.
+         // Defaults, unless a new packet is transmitted.
          timeout = idletimeout;
+         powercycle = 0;
 
          deadline.tv_usec = 0;
 
@@ -347,6 +370,21 @@ static void pidcc_eventLoop (void) {
                pidcc_delay (&deadline, pidcc_wave_microseconds ());
                pidcc_busy ("transmitting..");
                timeout = busytimeout;
+            }
+            userpacket = 1;
+            busy = 1;
+         } else if (length == 0) {
+            const char *error = pidcc_wave_off (programming);
+            if (error) {
+                pidcc_error (error);
+                deadline.tv_sec = 0;
+                deadline.tv_usec = 0;
+            } else {
+                gettimeofday (&deadline, 0);
+                pidcc_delay (&deadline, programming * 1000000);
+                pidcc_busy ("transmitting..");
+                timeout = idletimeout;
+                powercycle = 1;
             }
             userpacket = 1;
             busy = 1;

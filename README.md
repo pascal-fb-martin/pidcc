@@ -66,6 +66,11 @@ The sender must not append the DCC error detection byte to the data. PiDCC will 
 the `-p` option indicates a programming command, which have extended preamble and retry requirements.
 
 ```
+poweroff INTEGER
+```
+Request the transmitter to be turned off for the specified number of seconds. The transmitter is turned off only after the last queued packet has been sent.
+
+```
 debug [0|1]
 ```
 Enable or disable debug output. Without parameter, debug output is enabled. Any debug output line starts with character `$`.
