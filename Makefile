@@ -23,8 +23,7 @@ HAPP=pidcc
 HCAT=Train
 SHARE=$(prefix)/share/house
 
-HMAN=/var/lib/house/note/content/manuals/$(HCAT)
-HMANCACHE=/var/lib/house/note/cache/manuals/$(HCAT)
+HDCC=/var/lib/house/note/$(HCAT)/Protocol
 
 INSTALL=/usr/bin/install
 
@@ -55,11 +54,14 @@ tstgpio: tstgpio.c
 # the House install generic target.
 
 purge-doc:
-	if [ -d $(DESTDIR)$(HMANCACHE) ] ; then rm -rf $(DESTDIR)$(HMANCACHE)/* ; fi
+	rm -f $(DESTDIR)$(HDCC)/encoding.md
+	rm -f $(DESTDIR)$(HDCC)/programming.md
+	rmdir --ignore-fail-on-non-empty $(DESTDIR)$(HDCC)
 
-install-doc: purge-doc
-	$(INSTALL) -m 0755 -d $(DESTDIR)$(HMAN)
-	$(INSTALL) -m 0644 -T README.md $(DESTDIR)$(HMAN)/$(HAPP).md
+install-doc:
+	$(INSTALL) -m 0755 -d $(DESTDIR)$(HDCC)
+	$(INSTALL) -m 0644 -T encoding.md $(DESTDIR)$(HDCC)/encoding.md
+	$(INSTALL) -m 0644 -T programming.md $(DESTDIR)$(HDCC)/programming.md
 
 install: install-doc
 	$(INSTALL) -m 0755 -d $(DESTDIR)$(prefix)/bin
