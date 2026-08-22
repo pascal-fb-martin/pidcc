@@ -227,5 +227,5 @@ Verify causes the decoder to compare the data with its own configuration and ack
 
 Write cause the entire DDDDDDDD to be written to the specified CV after two identical packets have been received (as a validity check).
 
-Bit manipulation interprets DDDDDDDD as 111FDBBB, where F = 1 is write, F = 0 is verify, D contains the bit value and BBB represents the bit position.
+Bit manipulation interprets DDDDDDDD as 111FDBBB, where F = 1 is write, F = 0 is verify, D contains the bit value and BBB represents the bit position. This only takes effect after the decoder has received two identical packets (as a validity check).
 
