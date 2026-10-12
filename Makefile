@@ -24,6 +24,7 @@ HCAT=Train
 SHARE=$(prefix)/share/house
 
 HDCC=/var/lib/house/note/$(HCAT)/Protocol
+HMAN=/var/lib/house/note/manuals/$(HCAT)
 
 INSTALL=/usr/bin/install
 
@@ -67,10 +68,14 @@ install: install-doc
 	$(INSTALL) -m 0755 -d $(DESTDIR)$(prefix)/bin
 	rm -f $(DESTDIR)$(prefix)/bin/pidcc $(DESTDIR)$(prefix)/bin/tstgpio
 	$(INSTALL) -m 6755 -s pidcc tstgpio $(DESTDIR)$(prefix)/bin
+	$(INSTALL) -m 0755 -d $(DESTDIR)$(HMAN)
+	$(INSTALL) -m 0644 -T README.md $(DESTDIR)$(HMAN)/$(HAPP).md
 
 uninstall: purge-doc
 	rm -f $(DESTDIR)$(prefix)/bin/pidcc $(DESTDIR)$(prefix)/bin/tstgpio
+	rmdir --ignore-fail-on-non-empty $(DESTDIR)$(prefix)/bin
 	rm -f $(DESTDIR)$(HMAN)/$(HAPP).md
+	rmdir --ignore-fail-on-non-empty $(DESTDIR)$(HMAN)
 
 # Build a private Debian package. -------------------------------
 
